@@ -62,7 +62,7 @@ def lambda_handler(event, context):
         json.dump(activities, f)
 
     try:
-        s3_client.Object(bucket, latest_file_name).load()
+        s3_client.head_object(Bucket=bucket, Key=latest_file_name)
     except botocore.exceptions.ClientError as e:
         if e.response["Error"]["Code"] == "404":
             logging.info(

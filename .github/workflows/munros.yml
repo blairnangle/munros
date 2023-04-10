@@ -1,4 +1,4 @@
-name: munros
+name: Munros
 
 on:
   workflow_run:
