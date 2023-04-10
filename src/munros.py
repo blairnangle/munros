@@ -82,18 +82,27 @@ def lambda_handler(event, context):
     )
 
 
-def fetch_munro_activity_ids(page_number: int, access_token: str) -> list[(int, str)]:
-    summaries = []
+def filter_munros(activity_list: list[dict[str]]) -> list[int]:
+    result = []
+    for activity in activity_list:
+        if re.search(r"#munros", activity["name"].lower()):
+            result.append(activity["id"])
+
+    return result
+
+
+def fetch_munro_activity_ids(page_number: int, access_token: str) -> list[int]:
+    munro_activity_ids = []
     page_of_summaries = requests.get(
         f"https://www.strava.com/api/v3/athlete/activities?per_page=200&page={page_number}",
         headers={"Authorization": f"Bearer {access_token}"},
     ).json()
 
     if page_of_summaries:
-        summaries += list(map(lambda s: (s["id"]), filter_munros(page_of_summaries)))
-        summaries += fetch_munro_activity_ids(page_number + 1, access_token)
+        munro_activity_ids += filter_munros(page_of_summaries)
+        munro_activity_ids += fetch_munro_activity_ids(page_number + 1, access_token)
 
-    return summaries
+    return munro_activity_ids
 
 
 def fetch_activity(activity_id: str, access_token: str) -> dict[str, Any]:
@@ -116,15 +125,6 @@ def fetch_activity(activity_id: str, access_token: str) -> dict[str, Any]:
         "start_date_local": activity["start_date_local"],
         "timezone": activity["timezone"],
     }
-
-
-def filter_munros(activity_list: list[dict[str]]) -> list[dict[str]]:
-    result = []
-    for activity in activity_list:
-        if re.search(r"#munros", activity["name"].lower()):
-            result.append(activity)
-
-    return result
 
 
 s3_client = boto3.client(service_name="s3")
