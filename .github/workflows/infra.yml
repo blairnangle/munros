@@ -1,0 +1,49 @@
+name: Infra
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  INFRA_DIRECTORY: infra
+  TF_VAR_aws_account_number: ${{ secrets.AWS_ACCOUNT_NUMBER }}
+  TF_VAR_strava_client_secret: ${{ secrets.STRAVA_CLIENT_SECRET }}
+  AWS_REGION: eu-west-2
+
+jobs:
+  terraform:
+    name: Terraform
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ env.INFRA_DIRECTORY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1-node16
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Terraform Init
+        id: init
+        run: terraform init -input=false
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate
+
+      - name: Terraform plan
+        id: plan
+        run: terraform plan -out=tfplan -input=false
+
+      - name: Terraform apply
+        id: apply
+        run: terraform apply -input=false -auto-approve tfplan

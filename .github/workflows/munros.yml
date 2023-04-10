@@ -1,0 +1,43 @@
+name: munros
+
+on:
+  workflow_run:
+    workflows: [ infra ]
+    types: [ completed ]
+    branches: [ main ]
+
+env:
+  APP_NAME: munros
+  AWS_REGION: eu-west-2
+
+jobs:
+  build-and-deploy:
+    name: Build and deploy
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1-node16
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build Docker image
+        run: docker build -f Dockerfile.${{ env.APP_NAME }} -t ${{ env.APP_NAME }} .
+
+      - name: Tag Docker image
+        run: docker tag ${{ env.APP_NAME }}:latest ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.APP_NAME }}:latest
+
+      - name: Authenticate Docker CLI to use AWS ECR
+        run: aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+
+      - name: Push Docker image to ECR image registry
+        run: docker push ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.APP_NAME }}:latest
+
+      - name: Update Lambda function code to use latest image
+        run: aws lambda update-function-code --function-name ${{ env.APP_NAME }} --image-uri ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.APP_NAME }}:latest
