@@ -60,11 +60,17 @@ def lambda_handler(event, context):
     with open(f"/tmp/{latest_file_name}", "w") as f:
         json.dump(activities, f)
 
-    copy_file(
-        existing_file=latest_file_name,
-        new_file=f"munros-{time.strftime('%Y-%m-%d')}.json",
-        bucket=bucket,
+    objs: list[Any] = list(
+        s3_client.Bucket(bucket).objects.filter(Prefix=latest_file_name)
     )
+    keys: set[str] = set(o.key for o in objs)
+    if latest_file_name in keys:
+        copy_file(
+            existing_file=latest_file_name,
+            new_file=f"munros-{time.strftime('%Y-%m-%d')}.json",
+            bucket=bucket,
+        )
+
     upload_file(
         file_name=f"/tmp/{latest_file_name}",
         bucket=bucket,
@@ -133,6 +139,11 @@ def upload_file(file_name: str, bucket: str, object_name=None):
 
 def copy_file(existing_file: str, new_file: str, bucket: str):
     s3_resource = boto3.resource("s3")
-    s3_resource.Object(bucket, new_file).copy_from(
-        CopySource=f"{bucket}/{existing_file}"
-    )
+    try:
+        s3_resource.Object(bucket, new_file).copy_from(
+            CopySource=f"{bucket}/{existing_file}"
+        )
+    except ClientError as e:
+        logging.error(e)
+        return False
+    return True
