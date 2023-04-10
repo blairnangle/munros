@@ -6,6 +6,7 @@ import time
 from typing import Any
 
 import boto3
+import botocore
 import requests
 from botocore.exceptions import ClientError
 
@@ -60,11 +61,14 @@ def lambda_handler(event, context):
     with open(f"/tmp/{latest_file_name}", "w") as f:
         json.dump(activities, f)
 
-    objs: list[Any] = list(
-        s3_client.Bucket(bucket).objects.filter(Prefix=latest_file_name)
-    )
-    keys: set[str] = set(o.key for o in objs)
-    if latest_file_name in keys:
+    try:
+        s3_client.Object(bucket, latest_file_name).load()
+    except botocore.exceptions.ClientError as e:
+        if e.response["Error"]["Code"] == "404":
+            logging.info(
+                f"File {latest_file_name} does not exist in bucket {bucket}. This is expected on the first execution."
+            )
+    else:
         copy_file(
             existing_file=latest_file_name,
             new_file=f"munros-{time.strftime('%Y-%m-%d')}.json",
@@ -130,7 +134,7 @@ def upload_file(file_name: str, bucket: str, object_name=None):
     if object_name is None:
         object_name = os.path.basename(file_name)
     try:
-        response = s3_client.upload_file(file_name, bucket, object_name)
+        s3_client.upload_file(file_name, bucket, object_name)
     except ClientError as e:
         logging.error(e)
         return False
