@@ -1,5 +1,7 @@
 # munros
 
+Aggregating the bagging.
+
 ## Mechanism
 
 ### Authentication
