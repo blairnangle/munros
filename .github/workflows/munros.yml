@@ -28,7 +28,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Build Docker image
-        run: docker build -f Dockerfile.${{ env.APP_NAME }} -t ${{ env.APP_NAME }} .
+        run: docker build -t ${{ env.APP_NAME }} .
 
       - name: Tag Docker image
         run: docker tag ${{ env.APP_NAME }}:latest ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.APP_NAME }}:latest
