@@ -15,8 +15,8 @@ resource "aws_s3_bucket_policy" "munros" {
   bucket = aws_s3_bucket.munros.id
   policy = templatefile("${path.module}/templates/s3.json", {
     awsAccountNumber = var.aws_account_number,
-    #    lambdaRoleArn    = aws_iam_role.munros.arn,
-    bucketName = aws_s3_bucket.munros.bucket
+    lambdaRoleArn    = aws_iam_role.munros.arn,
+    bucketName       = aws_s3_bucket.munros.bucket
   })
 }
 
